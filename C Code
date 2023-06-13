@@ -1,0 +1,95 @@
+#include <Arduino.h>
+#include <SoftwareSerial.h>
+#include <ESP8266_Simple.h>
+#define ESP8266_SSID  "elec"
+#define ESP8266_PASS  "elec1234"
+ESP8266_Simple wifi(2,3);
+const int up = A0;
+const int down = A1;
+const int LED =13;
+const int DCA1 = 9; 
+const int DCB1 = 10;
+const int EN1 =8;
+
+void setup()
+{
+  Serial.begin(115200); // Reduce this if your Arduino has trouble talking so fast
+  Serial.println("IOT based Solar traking system");
+  wifi.begin(115200);
+  pinMode(LED, OUTPUT);
+  pinMode(EN1, OUTPUT);
+  pinMode(DCA1, OUTPUT);
+  pinMode(DCB1, OUTPUT);
+  digitalWrite(LED, LOW);
+  digitalWrite(EN1, LOW);
+  digitalWrite(DCA1, LOW);
+  digitalWrite(DCB1, LOW);
+  delay(100);
+  wifi.setupAsWifiStation(ESP8266_SSID, ESP8266_PASS, &Serial);
+  static ESP8266_HttpServerHandler myServerHandlers[] = {
+    { PSTR("GET /SolarVolt"), httpSolarVolt },
+   { PSTR("GET "),        http404    } 
+  };
+  wifi.startHttpServer(80, myServerHandlers, sizeof(myServerHandlers), 250, &Serial);
+  Serial.println("( Now you can use your web browser to hit the IP address 
+
+above. )");
+  Serial.println();
+  digitalWrite(LED, HIGH);
+  delay(1000);
+}
+
+
+void loop()
+{ 
+   int val1 =0;
+  int val2 =0;
+   wifi.serveHttpRequest();
+  val1=Solar_up_ldr();   if( val1 > 600 && val2 < 400){  Serial.println("Move UP"); digitalWrite(EN1, HIGH);  digitalWrite(DCA1, HIGH);   digital-Write(DCB1, LOW);   delay(100); digitalWrite(EN1, LOW);  digital-Write(DCA1, LOW); delay(200);}
+  val2=Solar_down_ldr(); if( val2 > 600 && val1 < 400){  Serial.println("Move Down"); digitalWrite(EN1, HIGH);  digitalWrite(DCA1, LOW);   digital-Write(DCB1, HIGH);   delay(100); digitalWrite(EN1, LOW);  digital-Write(DCB1, LOW); delay(200);}  
+  delay(500); 
+  wifi.serveHttpRequest();
+  return;
+}
+
+long anl_Voltage()
+ {
+   int volt = analogRead(A2);  
+    long x = (volt* 8)/ 914; 
+   Serial.println(x);
+   return x;
+  } 
+
+int Solar_up_ldr()
+ {
+   long volt = analogRead(up);   
+   //Serial.println("Up");
+
+   //Serial.println(volt);
+   return volt;
+  } 
+  
+int Solar_down_ldr()
+ {
+   long volt = analogRead(down);   
+  // Serial.println("Down");
+  // Serial.println(volt);
+   return volt;
+  }
+
+unsigned long httpSolarVolt(char *buffer, int bufferLength)
+{
+  // empty the buffer
+  memset(buffer,0,bufferLength);
+  strncpy_P(buffer, PSTR("<h1>Soalr panel </h1><p>The Volatge of solar panel: "), bufferLength-strlen(buffer));
+  ultoa(anl_Voltage(),buffer+strlen(buffer),10);
+  strncpy_P(buffer+strlen(buffer), PSTR("</p>"), bufferLength-strlen(buffer));        
+  return ESP8266_HTML | 200;  
+}
+
+  unsigned long http404(char *buffer, int bufferLength)
+{  
+  memset(buffer, 0, bufferLength);  
+  strcpy_P(buffer, PSTR("<h1>IOT based Solar traking sys-tem</h1>\r\n<p>Try <a href=\"/SolarVolt\">/SolarVolt</a>"));
+  return ESP8266_HTML | 404;
+}
